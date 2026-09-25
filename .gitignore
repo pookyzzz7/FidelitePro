@@ -1,0 +1,19 @@
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and generated build output
+node_modules/
+.next/
+out/
+dist/
+.firebase/
+.vercel/
+
+# Local audit backups and editor/OS metadata
+.audit-backup-*/
+.DS_Store
+*.swp
