@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FidélitéPro — Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBKom1-N5CWuHRVORrdumtvnJVeJZqAEjc",
+  authDomain: "fidelitepro-f14a0.firebaseapp.com",
+  projectId: "fidelitepro-f14a0",
+  storageBucket: "fidelitepro-f14a0.firebasestorage.app",
+  messagingSenderId: "106879268099",
+  appId: "1:106879268099:web:e935d1488ff1a23a51e536"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const functions = firebase.app().functions('europe-west1');
+</script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f0e11;
+  --surface: #1a1820;
+  --surface2: #232130;
+  --border: #2e2b3a;
+  --border2: #3e3b50;
+  --accent: #c8a96e;
+  --accent2: #e8c98a;
+  --accent3: rgba(200,169,110,0.12);
+  --text: #f0edf7;
+  --muted: #8a859a;
+  --muted2: #6a6578;
+  --danger: #e07070;
+  --danger2: rgba(224,112,112,0.12);
+  --success: #70c9a0;
+}
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+.hidden { display: none !important; }
+.brand {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 0.3rem;
+}
+.brand .accent { color: var(--accent); }
+.sub { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+
+/* ── LOGIN ── */
+#viewLogin {
+  width: 100%; max-width: 380px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: 2rem;
+}
+label { display: block; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+input {
+  width: 100%; padding: 0.7rem 0.9rem; margin-bottom: 1.1rem;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 0.9rem; font-family: inherit;
+}
+input:focus { outline: none; border-color: var(--accent); }
+button {
+  width: 100%; padding: 0.8rem; border: none; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  color: #1a1410; font-weight: 600; font-size: 0.9rem; cursor: pointer; font-family: inherit;
+}
+button:disabled { opacity: 0.6; cursor: default; }
+.msg { font-size: 0.82rem; border-radius: 10px; padding: 0.6rem 0.8rem; margin-bottom: 1rem; display: none; }
+.msg.show { display: block; }
+.msg.error { background: var(--danger2); color: var(--danger); }
+
+/* ── DASHBOARD ── */
+#viewDashboard { width: 100%; max-width: 1100px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+.topbar button { width: auto; padding: 0.5rem 1rem; background: var(--surface2); color: var(--text); border: 1px solid var(--border2); font-weight: 500; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.2rem; }
+.stat .n { font-family: 'Playfair Display', serif; font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+.stat .l { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+th, td { text-align: left; padding: 0.75rem 1rem; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--surface2); }
+tr:last-child td { border-bottom: none; }
+.empty { text-align: center; color: var(--muted); padding: 2rem; }
+</style>
+</head>
+<body>
+
+<div id="viewLogin">
+  <div class="brand">Fidélité<span class="accent">Pro</span></div>
+  <div class="sub">Espace administrateur</div>
+  <div id="loginMsg" class="msg error"></div>
+  <label>Adresse e-mail</label>
+  <input type="email" id="loginEmail" placeholder="vous@exemple.fr" autocomplete="username">
+  <label>Mot de passe</label>
+  <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+  <button id="loginBtn" onclick="doAdminLogin()">→ Se connecter</button>
+</div>
+
+<div id="viewDashboard" class="hidden">
+  <div class="topbar">
+    <div>
+      <div class="brand" style="text-align:left;font-size:1.4rem">Fidélité<span class="accent">Pro</span> — Admin</div>
+      <div class="sub" style="text-align:left;margin-bottom:0">Vue d'ensemble des commerçants</div>
+    </div>
+    <button onclick="doAdminLogout()">Déconnexion</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="n" id="statMerchants">—</div><div class="l">Commerçants</div></div>
+    <div class="stat"><div class="n" id="statCards">—</div><div class="l">Cartes créées</div></div>
+    <div class="stat"><div class="n" id="statClients">—</div><div class="l">Clients au total</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Commerce</th><th>Propriétaire</th><th>Email</th><th>Inscrit le</th><th>Cartes</th><th>Clients</th><th>Dernière activité</th></tr>
+    </thead>
+    <tbody id="merchantsBody"></tbody>
+  </table>
+</div>
+
+<script>
+function showLoginMsg(text) {
+  const el = document.getElementById('loginMsg');
+  el.textContent = text;
+  el.classList.add('show');
+}
+
+async function doAdminLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!email || !password) { showLoginMsg('Remplissez tous les champs.'); return; }
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = '⏳ Connexion...';
+  document.getElementById('loginMsg').classList.remove('show');
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    // onAuthStateChanged prend le relais
+  } catch (e) {
+    btn.disabled = false; btn.textContent = '→ Se connecter';
+    showLoginMsg('E-mail ou mot de passe incorrect.');
+  }
+}
+
+async function doAdminLogout() {
+  await auth.signOut();
+  document.getElementById('viewDashboard').classList.add('hidden');
+  document.getElementById('viewLogin').classList.remove('hidden');
+  document.getElementById('loginBtn').disabled = false;
+  document.getElementById('loginBtn').textContent = '→ Se connecter';
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function renderMerchants(merchants) {
+  document.getElementById('statMerchants').textContent = merchants.length;
+  document.getElementById('statCards').textContent = merchants.reduce((s, m) => s + (m.cardCount || 0), 0);
+  document.getElementById('statClients').textContent = merchants.reduce((s, m) => s + (m.clientCount || 0), 0);
+
+  const body = document.getElementById('merchantsBody');
+  if (merchants.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">Aucun commerçant inscrit pour le moment.</td></tr>';
+    return;
+  }
+  body.innerHTML = merchants
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .map(m => `
+      <tr>
+        <td>${m.shopName || '—'}</td>
+        <td>${m.ownerName || '—'}</td>
+        <td>${m.email || '—'}</td>
+        <td>${formatDate(m.createdAt)}</td>
+        <td>${m.cardCount}</td>
+        <td>${m.clientCount}</td>
+        <td>${formatDate(m.lastActivity)}</td>
+      </tr>`)
+    .join('');
+}
+
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    document.getElementById('viewDashboard').classList.add('hidden');
+    document.getElementById('viewLogin').classList.remove('hidden');
+    return;
+  }
+  try {
+    const call = functions.httpsCallable('adminListMerchants');
+    const res = await call();
+    document.getElementById('viewLogin').classList.add('hidden');
+    document.getElementById('viewDashboard').classList.remove('hidden');
+    renderMerchants(res.data.merchants || []);
+  } catch (e) {
+    console.warn('adminListMerchants failed', e);
+    await auth.signOut();
+    document.getElementById('viewDashboard').classList.add('hidden');
+    document.getElementById('viewLogin').classList.remove('hidden');
+    document.getElementById('loginBtn').disabled = false;
+    document.getElementById('loginBtn').textContent = '→ Se connecter';
+    showLoginMsg('Accès refusé.');
+  }
+});
+</script>
+</body>
+</html>
