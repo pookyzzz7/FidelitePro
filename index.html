@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FidélitéPro">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f0e11'/><text y='70' x='50' text-anchor='middle' font-size='60'>✦</text></svg>">
+<link rel="manifest" href="./manifest.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- Firebase -->
@@ -29,21 +30,6 @@ firebase.initializeApp(firebaseConfig);
 const db   = firebase.firestore();
 const auth = firebase.auth();
 
-// ── Disponible immédiatement pour les onclick ──
-function switchLoginTab(tab) {
-  ['tabLogin','tabSignup'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.toggle('active', id === (tab==='login' ? 'tabLogin' : 'tabSignup'));
-  });
-  const fl = document.getElementById('formLogin');
-  const fs = document.getElementById('formSignup');
-  if (fl) fl.style.display = tab==='login'  ? 'block' : 'none';
-  if (fs) fs.style.display = tab==='signup' ? 'block' : 'none';
-  ['loginError','loginSuccess'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.textContent=''; el.classList.remove('show'); }
-  });
-}
 </script>
 <style>
 /* ═══ PAGE LOGIN ═══ */
@@ -1078,93 +1064,48 @@ body.light .panel { background: var(--surface); }
 .notif-special-icon { font-size: 1.2rem; }
 .notif-special-title { font-weight: 600; font-size: 0.85rem; }
 .notif-special-body { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+
+
+/* ═══ RESPONSIVE LAYOUT ═══ */
+@media (max-width: 1050px) {
+  header { height:auto; min-height:60px; padding:0.65rem 1rem; flex-wrap:wrap; gap:0.5rem; }
+  .nav-tabs { order:3; width:100%; height:42px; margin:0; overflow-x:auto; scrollbar-width:none; }
+  .nav-tabs::-webkit-scrollbar { display:none; }
+  .nav-tab { flex:0 0 auto; padding:0 0.75rem; }
+  #pageCreateur { flex-direction:column; min-height:auto; }
+  #pageCreateur > .panel { width:100% !important; min-width:0 !important; border-right:0; border-left:0; border-bottom:1px solid var(--border); }
+  #pageCreateur > .panel:last-child { border-top:1px solid var(--border); border-bottom:0; }
+  .canvas-area { order:-1; min-height:520px; }
+}
+@media (max-width: 700px) {
+  body { overflow-x:hidden; }
+  header { padding:0.6rem 0.75rem; }
+  .logo { font-size:1.1rem; }
+  .header-right { width:100%; justify-content:flex-end; gap:0.35rem; }
+  .header-right .btn:not(.btn-icon), .header-right .install-btn { font-size:0.7rem; padding:0.3rem 0.5rem; }
+  .nav-tab { font-size:0.72rem; padding:0 0.55rem; }
+  .canvas-area { padding:1rem 0.75rem; min-height:440px; }
+  .card-preview-wrapper { width:100%; display:flex; justify-content:center; }
+  .card-preview { width:min(360px,100%); height:auto; min-height:210px; }
+  .canvas-info-block { grid-template-columns:repeat(3,1fr); gap:0.4rem; padding:0.8rem 0.5rem; }
+  .info-stat-val { font-size:1.1rem; }
+  .info-stat-label { font-size:0.58rem; }
+  #pageDashboard, #pageClients, #pageScanner, #pagePartage { padding:1rem; }
+  .stats-grid, .dash-grid, .scanner-layout, .share-grid { grid-template-columns:1fr; }
+  .form-grid-2, .color-row, .stamp-row { grid-template-columns:1fr; }
+  .modal { padding:1.25rem; width:calc(100vw - 1.5rem); }
+  .login-box { padding:1.75rem 1.25rem; }
+  .notif-special { left:0.75rem; right:0.75rem; width:auto; }
+  .clients-table { display:block; overflow-x:auto; white-space:nowrap; }
+}
+
 </style>
 </head>
 <body>
-<script>
-// ── Toutes les fonctions login disponibles immédiatement ──
-function switchLoginTab(tab) {
-  var tl=document.getElementById('tabLogin');
-  var ts=document.getElementById('tabSignup');
-  var fl=document.getElementById('formLogin');
-  var fs=document.getElementById('formSignup');
-  if(tl) tl.className='login-tab'+(tab==='login'?' active':'');
-  if(ts) ts.className='login-tab'+(tab==='signup'?' active':'');
-  if(fl) fl.style.display=tab==='login'?'block':'none';
-  if(fs) fs.style.display=tab==='signup'?'block':'none';
-  ['loginError','loginSuccess'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el){el.textContent='';el.classList.remove('show');}
-  });
-}
-function _showLoginError(msg) {
-  var el=document.getElementById('loginError');
-  if(el){el.textContent=msg;el.classList.add('show');}
-  console.error('Login error:',msg);
-}
-function _showLoginSuccess(msg) {
-  var el=document.getElementById('loginSuccess');
-  if(el){el.textContent=msg;el.classList.add('show');}
-}
-function doLogin() {
-  var email=(document.getElementById('loginEmail')||{}).value||'';
-  var password=(document.getElementById('loginPassword')||{}).value||'';
-  email=email.trim();
-  if(!email||!password){_showLoginError('Remplissez tous les champs.');return;}
-  var btn=document.getElementById('loginBtn');
-  if(btn){btn.textContent='⏳ Connexion...';btn.disabled=true;}
-  if(typeof auth==='undefined'){_showLoginError('Firebase non chargé. Rechargez la page.');if(btn){btn.textContent='→ Se connecter';btn.disabled=false;}return;}
-  auth.signInWithEmailAndPassword(email,password).catch(function(e){
-    if(btn){btn.textContent='→ Se connecter';btn.disabled=false;}
-    var msgs={'auth/user-not-found':'Aucun compte avec cet e-mail.','auth/wrong-password':'Mot de passe incorrect.','auth/invalid-email':'Adresse e-mail invalide.','auth/invalid-credential':'E-mail ou mot de passe incorrect.','auth/too-many-requests':'Trop de tentatives. Réessayez plus tard.','auth/network-request-failed':'Erreur réseau. Vérifiez votre connexion.'};
-    _showLoginError(msgs[e.code]||'Erreur : '+e.message);
-  });
-}
-function doSignup() {
-  var shop=(document.getElementById('signupShop')||{}).value||'';
-  var name=(document.getElementById('signupName')||{}).value||'';
-  var email=(document.getElementById('signupEmail')||{}).value||'';
-  var pass1=(document.getElementById('signupPassword')||{}).value||'';
-  var pass2=(document.getElementById('signupPassword2')||{}).value||'';
-  shop=shop.trim();name=name.trim();email=email.trim();
-  if(!shop){_showLoginError('Entrez le nom de votre commerce.');return;}
-  if(!name){_showLoginError('Entrez votre nom.');return;}
-  if(!email){_showLoginError('Entrez votre adresse e-mail.');return;}
-  if(!pass1){_showLoginError('Entrez un mot de passe.');return;}
-  if(pass1.length<8){_showLoginError('Le mot de passe doit faire au moins 8 caractères.');return;}
-  if(pass1!==pass2){_showLoginError('Les mots de passe ne correspondent pas.');return;}
-  var btn=document.getElementById('signupBtn');
-  if(btn){btn.textContent='⏳ Création en cours...';btn.disabled=true;}
-  if(typeof auth==='undefined'){_showLoginError('Firebase non chargé. Rechargez la page.');if(btn){btn.textContent='✓ Créer mon compte';btn.disabled=false;}return;}
-  auth.createUserWithEmailAndPassword(email,pass1).then(function(cred){
-    return db.collection('merchants').doc(cred.user.uid).set({
-      shopName:shop,ownerName:name,email:email,
-      createdAt:new Date().toISOString(),
-      cards:[],clients:[],activity:[],weekActivity:[0,0,0,0,0,0,0]
-    });
-  }).catch(function(e){
-    if(btn){btn.textContent='✓ Créer mon compte';btn.disabled=false;}
-    var msgs={'auth/email-already-in-use':'Cet e-mail est déjà utilisé. Connectez-vous.','auth/invalid-email':'Adresse e-mail invalide.','auth/weak-password':'Mot de passe trop faible (8 caractères min).','auth/network-request-failed':'Erreur réseau. Vérifiez votre connexion.','auth/operation-not-allowed':'L\'authentification par e-mail n\'est pas activée sur Firebase.'};
-    _showLoginError(msgs[e.code]||'Erreur : '+e.message);
-  });
-}
-function doResetPassword() {
-  var email=(document.getElementById('loginEmail')||{}).value||'';
-  email=email.trim();
-  if(!email){_showLoginError('Entrez votre e-mail pour réinitialiser votre mot de passe.');return;}
-  if(typeof auth==='undefined'){_showLoginError('Firebase non chargé.');return;}
-  auth.sendPasswordResetEmail(email).then(function(){
-    _showLoginSuccess('E-mail de réinitialisation envoyé ! Vérifiez votre boîte mail.');
-  }).catch(function(){
-    _showLoginError('Impossible d\'envoyer l\'e-mail. Vérifiez l\'adresse.');
-  });
-}
-</script>
-
 <!-- ═══════ PAGE LOGIN ═══════ -->
-<div id="pageLogin">
+<div id="pageLogin" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="login-box">
-    <div class="login-logo">Fidélité<span>Pro</span></div>
+    <div class="login-logo" id="loginTitle">Fidélité<span>Pro</span></div>
     <div class="login-tagline">Gérez vos cartes de fidélité dématérialisées</div>
 
     <div class="login-tabs">
@@ -1178,12 +1119,12 @@ function doResetPassword() {
     <!-- CONNEXION -->
     <div id="formLogin">
       <div class="field">
-        <label>Adresse e-mail</label>
-        <input type="email" id="loginEmail" placeholder="vous@exemple.fr" onkeydown="if(event.key==='Enter')doLogin()">
+        <label for="loginEmail">Adresse e-mail</label>
+        <input type="email" id="loginEmail" aria-label="Adresse e-mail" placeholder="vous@exemple.fr" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
       <div class="field">
-        <label>Mot de passe</label>
-        <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+        <label for="loginPassword">Mot de passe</label>
+        <input type="password" id="loginPassword" aria-label="Mot de passe" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
       <button class="forgot-link" onclick="doResetPassword()">Mot de passe oublié ?</button>
       <button class="btn btn-primary btn-lg" style="width:100%" onclick="doLogin()" id="loginBtn">
@@ -1195,25 +1136,25 @@ function doResetPassword() {
     <div id="formSignup" style="display:none">
       <div class="form-grid-2">
         <div class="field">
-          <label>Nom du commerce</label>
-          <input type="text" id="signupShop" placeholder="Le Petit Café">
+          <label for="signupShop">Nom du commerce</label>
+          <input type="text" id="signupShop" aria-label="Nom du commerce" placeholder="Le Petit Café">
         </div>
         <div class="field">
-          <label>Votre nom</label>
-          <input type="text" id="signupName" placeholder="Marie Dupont">
+          <label for="signupName">Votre nom</label>
+          <input type="text" id="signupName" aria-label="Votre nom" placeholder="Marie Dupont">
         </div>
       </div>
       <div class="field">
-        <label>Adresse e-mail</label>
-        <input type="email" id="signupEmail" placeholder="vous@exemple.fr">
+        <label for="signupEmail">Adresse e-mail</label>
+        <input type="email" id="signupEmail" aria-label="Adresse e-mail" placeholder="vous@exemple.fr">
       </div>
       <div class="field">
-        <label>Mot de passe</label>
-        <input type="password" id="signupPassword" placeholder="8 caractères minimum">
+        <label for="signupPassword">Mot de passe</label>
+        <input type="password" id="signupPassword" aria-label="Mot de passe" placeholder="8 caractères minimum">
       </div>
       <div class="field">
-        <label>Confirmer le mot de passe</label>
-        <input type="password" id="signupPassword2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSignup()">
+        <label for="signupPassword2">Confirmer le mot de passe</label>
+        <input type="password" id="signupPassword2" aria-label="Confirmer le mot de passe" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSignup()">
       </div>
       <button class="btn btn-primary btn-lg" style="width:100%;margin-top:0.5rem" onclick="doSignup()" id="signupBtn">
         ✓ Créer mon compte
@@ -1225,6 +1166,8 @@ function doResetPassword() {
   </div>
 </div>
 
+<!-- Private application shell: inert until Firebase confirms a session. -->
+<div id="appShell" aria-hidden="true" inert>
 <!-- Sync status -->
 <div class="sync-status" id="syncStatus"></div>
 
@@ -1281,16 +1224,16 @@ function doResetPassword() {
     <div class="divider"></div>
 
     <div class="field">
-      <label>Nom du commerce</label>
-      <input type="text" id="shopName" value="Le Petit Café" oninput="updateCard()" maxlength="30">
+      <label for="shopName">Nom du commerce</label>
+      <input type="text" id="shopName" aria-label="Nom du commerce" value="Le Petit Café" oninput="updateCard()" maxlength="30">
     </div>
     <div class="field">
-      <label>Slogan (optionnel)</label>
-      <input type="text" id="tagline" value="Votre moment de détente" oninput="updateCard()" maxlength="40">
+      <label for="tagline">Slogan (optionnel)</label>
+      <input type="text" id="tagline" aria-label="Slogan" value="Votre moment de détente" oninput="updateCard()" maxlength="40">
     </div>
     <div class="field">
-      <label>Type de commerce</label>
-      <select id="category" onchange="updateCard()">
+      <label for="category">Type de commerce</label>
+      <select id="category" aria-label="Type de commerce" onchange="updateCard()">
         <option value="☕ Café">☕ Café</option>
         <option value="🍕 Restaurant">🍕 Restaurant</option>
         <option value="💇 Coiffeur">💇 Coiffeur</option>
@@ -1304,9 +1247,9 @@ function doResetPassword() {
 
     <!-- LOGO UPLOAD -->
     <div class="field">
-      <label>Logo (optionnel)</label>
+      <label for="logoFileInput">Logo (optionnel)</label>
       <div class="logo-upload-area" id="logoUploadArea" onclick="document.getElementById('logoFileInput').click()">
-        <input type="file" id="logoFileInput" accept="image/*" onchange="handleLogoUpload(event)" style="display:none">
+        <input type="file" id="logoFileInput" aria-label="Logo du commerce" accept="image/*" onchange="handleLogoUpload(event)" style="display:none">
         <div id="logoPlaceholder" style="font-size:0.8rem;color:var(--muted)">
           📁 Cliquez pour uploader votre logo<br>
           <span style="font-size:0.7rem;opacity:0.7">PNG, JPG, SVG — max 500ko</span>
@@ -1323,12 +1266,12 @@ function doResetPassword() {
     <div class="panel-title">🎨 Couleurs</div>
 
     <div class="color-row">
-      <div class="field"><label>Fond 1</label><input type="color" id="color1" value="#1a0a3a" oninput="updateCard()"></div>
-      <div class="field"><label>Fond 2</label><input type="color" id="color2" value="#3d1060" oninput="updateCard()"></div>
+      <div class="field"><label for="color1">Fond 1</label><input type="color" id="color1" aria-label="Couleur de fond 1" value="#1a0a3a" oninput="updateCard()"></div>
+      <div class="field"><label for="color2">Fond 2</label><input type="color" id="color2" aria-label="Couleur de fond 2" value="#3d1060" oninput="updateCard()"></div>
     </div>
     <div class="color-row">
-      <div class="field"><label>Texte</label><input type="color" id="textColor" value="#ffffff" oninput="updateCard()"></div>
-      <div class="field"><label>Tampon</label><input type="color" id="stampColor" value="#f0c060" oninput="updateCard()"></div>
+      <div class="field"><label for="textColor">Texte</label><input type="color" id="textColor" aria-label="Couleur du texte" value="#ffffff" oninput="updateCard()"></div>
+      <div class="field"><label for="stampColor">Tampon</label><input type="color" id="stampColor" aria-label="Couleur des tampons" value="#f0c060" oninput="updateCard()"></div>
     </div>
 
     <div class="divider"></div>
@@ -1339,8 +1282,8 @@ function doResetPassword() {
     <div class="panel-title">◉ Tampons</div>
 
     <div class="stamp-row">
-      <div class="field"><label>Cases total</label><input type="number" id="stampCount" value="10" min="4" max="20" oninput="updateCard()"></div>
-      <div class="field"><label>Complétées</label><input type="number" id="stampFilled" value="4" min="0" max="20" oninput="updateCard()"></div>
+      <div class="field"><label for="stampCount">Cases total</label><input type="number" id="stampCount" aria-label="Nombre total de tampons" value="10" min="4" max="20" oninput="updateCard()"></div>
+      <div class="field"><label for="stampFilled">Complétées</label><input type="number" id="stampFilled" aria-label="Tampons déjà complétés" value="4" min="0" max="20" oninput="updateCard()"></div>
     </div>
     <div class="field">
       <label>Forme</label>
@@ -1354,7 +1297,7 @@ function doResetPassword() {
       <label>Icône du tampon</label>
       <div class="emoji-row" id="emojiPicker"></div>
     </div>
-    <div class="field"><label>Récompense finale</label><input type="text" id="reward" value="1 café offert !" oninput="updateCard()" maxlength="40"></div>
+    <div class="field"><label for="reward">Récompense finale</label><input type="text" id="reward" aria-label="Récompense finale" value="1 café offert !" oninput="updateCard()" maxlength="40"></div>
   </div>
 
   <!-- CENTER CANVAS -->
@@ -1567,9 +1510,9 @@ function doResetPassword() {
   <div class="modal">
     <div class="modal-title">⚑ Objectifs hebdomadaires</div>
     <div class="modal-sub">Définissez vos cibles pour suivre votre progression.</div>
-    <div class="field"><label>Tampons par semaine</label><input type="number" id="goalStamps" value="50" min="1"></div>
-    <div class="field"><label>Nouveaux clients par semaine</label><input type="number" id="goalClients" value="5" min="1"></div>
-    <div class="field"><label>Récompenses par semaine</label><input type="number" id="goalRewards" value="3" min="1"></div>
+    <div class="field"><label for="goalStamps">Tampons par semaine</label><input type="number" id="goalStamps" aria-label="Objectif de tampons par semaine" value="50" min="1"></div>
+    <div class="field"><label for="goalClients">Nouveaux clients par semaine</label><input type="number" id="goalClients" aria-label="Objectif de nouveaux clients par semaine" value="5" min="1"></div>
+    <div class="field"><label for="goalRewards">Récompenses par semaine</label><input type="number" id="goalRewards" aria-label="Objectif de récompenses par semaine" value="3" min="1"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="document.getElementById('goalsModal').classList.remove('open')">Annuler</button>
       <button class="btn btn-primary" onclick="saveGoals()">✓ Enregistrer</button>
@@ -1596,7 +1539,7 @@ function doResetPassword() {
     <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
       <div class="search-bar" style="flex:1;min-width:240px">
         <span class="search-icon">⌕</span>
-        <input type="text" id="clientSearch" placeholder="Rechercher un client..." oninput="renderClients()">
+        <input type="text" id="clientSearch" aria-label="Rechercher un client" placeholder="Rechercher un client..." oninput="renderClients()">
       </div>
       <div class="filter-chips">
         <div class="chip active" data-filter="all" onclick="setFilter('all', this)">Tous</div>
@@ -1645,7 +1588,7 @@ function doResetPassword() {
             <div class="qr-icon">⬡</div>
             <p>Pointez votre caméra sur le QR code client<br>ou entrez le code ci-dessous</p>
             <div class="code-input-row">
-              <input type="text" id="scanInput" placeholder="EX: FP-CAFE-A1B2" maxlength="20" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doScan()">
+              <input type="text" id="scanInput" aria-label="Code client ou carte" placeholder="EX: FP-CAFE-A1B2" maxlength="20" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doScan()">
               <button class="btn btn-primary" onclick="doScan()">Valider</button>
             </div>
           </div>
@@ -1894,29 +1837,29 @@ function doResetPassword() {
     <div class="modal-title">Ajouter un client</div>
     <div class="modal-sub">Enregistrez un nouveau client dans votre programme de fidélité.</div>
     <div class="form-grid-2">
-      <div class="field"><label>Prénom</label><input type="text" id="nc-prenom" placeholder="Marie"></div>
-      <div class="field"><label>Nom</label><input type="text" id="nc-nom" placeholder="Dupont"></div>
+      <div class="field"><label for="nc-prenom">Prénom</label><input type="text" id="nc-prenom" aria-label="Prénom" placeholder="Marie"></div>
+      <div class="field"><label for="nc-nom">Nom</label><input type="text" id="nc-nom" aria-label="Nom" placeholder="Dupont"></div>
     </div>
-    <div class="field"><label>E-mail</label><input type="email" id="nc-email" placeholder="marie@exemple.fr"></div>
+    <div class="field"><label for="nc-email">E-mail</label><input type="email" id="nc-email" aria-label="E-mail" placeholder="marie@exemple.fr"></div>
     <div class="form-grid-2">
-      <div class="field"><label>Téléphone (optionnel)</label><input type="text" id="nc-phone" placeholder="06 12 34 56 78"></div>
-      <div class="field"><label>Date de naissance (optionnel)</label><input type="date" id="nc-birthday"></div>
+      <div class="field"><label for="nc-phone">Téléphone (optionnel)</label><input type="text" id="nc-phone" aria-label="Téléphone" placeholder="06 12 34 56 78"></div>
+      <div class="field"><label for="nc-birthday">Date de naissance (optionnel)</label><input type="date" id="nc-birthday" aria-label="Date de naissance"></div>
     </div>
     <div class="field">
       <label>Cartes de fidélité <span style="color:var(--muted);font-weight:400">(plusieurs possibles)</span></label>
       <div class="card-select-list" id="modalCardSelector" style="max-height:160px"></div>
     </div>
     <div class="field">
-      <label>Date d'expiration <span style="color:var(--muted);font-weight:400">(optionnel)</span></label>
+      <label for="nc-expiry">Date d'expiration <span style="color:var(--muted);font-weight:400">(optionnel)</span></label>
       <div style="display:flex;gap:0.5rem;align-items:center">
-        <input type="date" id="nc-expiry" style="flex:1">
+        <input type="date" id="nc-expiry" aria-label="Date d’expiration" style="flex:1">
         <button class="btn btn-ghost btn-sm" onclick="setQuickExpiry(90)">+3 mois</button>
         <button class="btn btn-ghost btn-sm" onclick="setQuickExpiry(365)">+1 an</button>
       </div>
     </div>
     <div class="field">
-      <label>Notes internes (optionnel)</label>
-      <textarea id="nc-notes" placeholder="Allergies, préférences, remarques..." style="height:55px"></textarea>
+      <label for="nc-notes">Notes internes (optionnel)</label>
+      <textarea id="nc-notes" aria-label="Notes internes" placeholder="Allergies, préférences, remarques..." style="height:55px"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeAddClient()">Annuler</button>
@@ -2048,7 +1991,7 @@ function doResetPassword() {
       <div class="card-select-list" id="addCardSelector"></div>
     </div>
     <div class="field">
-      <label>Date d'expiration (optionnel)</label>
+      <label for="ac-expiry">Date d'expiration (optionnel)</label>
       <div style="display:flex;gap:0.5rem;align-items:center">
         <input type="date" id="ac-expiry" style="flex:1">
         <button class="btn btn-ghost btn-sm" onclick="setQuickExpiryAC(365)">+1 an</button>
@@ -2066,11 +2009,11 @@ function doResetPassword() {
   <div class="modal">
     <div class="modal-title">⚙ Paramètres du compte</div>
     <div class="modal-sub">Gérez les informations de votre établissement.</div>
-    <div class="field"><label>Nom du commerce</label><input type="text" id="acShopName" placeholder="Le Petit Café"></div>
-    <div class="field"><label>Votre nom</label><input type="text" id="acOwnerName" placeholder="Marie Dupont"></div>
-    <div class="field"><label>E-mail</label><input type="email" id="acEmail" disabled style="opacity:0.6"></div>
+    <div class="field"><label for="acShopName">Nom du commerce</label><input type="text" id="acShopName" aria-label="Nom du commerce" placeholder="Le Petit Café"></div>
+    <div class="field"><label for="acOwnerName">Votre nom</label><input type="text" id="acOwnerName" aria-label="Votre nom" placeholder="Marie Dupont"></div>
+    <div class="field"><label for="acEmail">E-mail</label><input type="email" id="acEmail" aria-label="E-mail du compte" disabled style="opacity:0.6"></div>
     <div class="divider"></div>
-    <div class="field"><label>Nouveau mot de passe <span style="color:var(--muted);font-weight:400">(laisser vide pour ne pas changer)</span></label><input type="password" id="acNewPassword" placeholder="Nouveau mot de passe"></div>
+    <div class="field"><label for="acNewPassword">Nouveau mot de passe <span style="color:var(--muted);font-weight:400">(laisser vide pour ne pas changer)</span></label><input type="password" id="acNewPassword" aria-label="Nouveau mot de passe" placeholder="Nouveau mot de passe"></div>
     <div id="accountError" class="login-error"></div>
     <div id="accountSuccess" class="login-success"></div>
     <div class="modal-footer">
@@ -2091,6 +2034,8 @@ function doResetPassword() {
   </div>
   <div class="notif-special-body" id="notifBody"></div>
 </div>
+
+</div><!-- /#appShell -->
 
 <script>
 // ═══════════════════════════════════════════
@@ -2124,7 +2069,13 @@ const NAMES_LAST = ['Dupont','Martin','Bernard','Moreau','Simon','Laurent','Mich
 function randItem(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
 function randInt(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
 function genCode(prefix='FP') {
-  return prefix + '-' + Math.random().toString(36).substr(2,6).toUpperCase();
+  // Code long et cryptographiquement aléatoire : il sert de secret d'accès
+  // à la carte publique (carte.html), doit résister au brute-force.
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const code = Array.from(bytes, b => chars[b % chars.length]).join('');
+  return prefix + '-' + code;
 }
 function timeAgo(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -2166,6 +2117,43 @@ function showLoginError(msg) {
 function showLoginSuccess(msg) {
   const el = document.getElementById('loginSuccess');
   if (el) { el.textContent = msg; el.classList.add('show'); }
+}
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
+
+function setAuthUi(user) {
+  const shell = document.getElementById('appShell');
+  if (!shell) return;
+  if (user) {
+    shell.removeAttribute('inert');
+    shell.setAttribute('aria-hidden', 'false');
+  } else {
+    shell.setAttribute('inert', '');
+    shell.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function requireAuth() {
+  if (currentUser && MERCHANT_ID) return true;
+  showLoginError('Connectez-vous pour accéder à cet espace.');
+  return false;
+}
+
+function switchLoginTab(tab) {
+  const loginTab = document.getElementById('tabLogin');
+  const signupTab = document.getElementById('tabSignup');
+  const loginForm = document.getElementById('formLogin');
+  const signupForm = document.getElementById('formSignup');
+  if (loginTab) loginTab.classList.toggle('active', tab === 'login');
+  if (signupTab) signupTab.classList.toggle('active', tab === 'signup');
+  if (loginForm) loginForm.style.display = tab === 'login' ? 'block' : 'none';
+  if (signupForm) signupForm.style.display = tab === 'signup' ? 'block' : 'none';
+  clearLoginMessages();
 }
 
 async function doLogin() {
@@ -2296,11 +2284,12 @@ function openAccountModal() {
   document.getElementById('accountModal').classList.add('open');
 }
 async function saveAccount() {
+  if (!requireAuth()) return;
   const shopName  = document.getElementById('acShopName').value.trim();
   const ownerName = document.getElementById('acOwnerName').value.trim();
   const newPass   = document.getElementById('acNewPassword').value;
   try {
-    await db.collection('merchants').doc(MERCHANT_ID).update({ shopName, ownerName });
+    await withTimeout(db.collection('merchants').doc(MERCHANT_ID).update({ shopName, ownerName }), 10000);
     merchantProfile.shopName  = shopName;
     merchantProfile.ownerName = ownerName;
     updateUserMenu(currentUser, merchantProfile);
@@ -2320,12 +2309,13 @@ async function saveAccount() {
 // ── AUTH STATE OBSERVER ──
 auth.onAuthStateChanged(async (user) => {
   if (user) {
+    setAuthUi(user);
     currentUser = user;
     MERCHANT_ID = user.uid;
 
-    // Charger le profil commerçant
+    // Charger le profil commerçant (délai max : sinon Firestore injoignable)
     try {
-      const profileDoc = await db.collection('merchants').doc(MERCHANT_ID).get();
+      const profileDoc = await withTimeout(db.collection('merchants').doc(MERCHANT_ID).get(), 12000);
       if (profileDoc.exists) {
         merchantProfile = profileDoc.data();
       } else {
@@ -2336,7 +2326,17 @@ auth.onAuthStateChanged(async (user) => {
           cards: [], clients: [], activity: [], weekActivity: [0,0,0,0,0,0,0],
         });
       }
-    } catch(e) { merchantProfile = {}; }
+    } catch(e) {
+      if (e && e.message === 'timeout') {
+        const btn = document.getElementById('loginBtn');
+        if (btn) { btn.textContent = '→ Se connecter'; btn.disabled = false; }
+        showLoginError('Serveur injoignable. Vérifiez votre connexion et réessayez.');
+        setAuthUi(null);
+        await auth.signOut();
+        return;
+      }
+      merchantProfile = {};
+    }
 
     updateUserMenu(user, merchantProfile);
 
@@ -2348,6 +2348,7 @@ auth.onAuthStateChanged(async (user) => {
 
   } else {
     // Non connecté → afficher login
+    setAuthUi(null);
     currentUser = null;
     MERCHANT_ID = null;
     document.getElementById('pageLogin').classList.remove('hidden');
@@ -2359,26 +2360,31 @@ auth.onAuthStateChanged(async (user) => {
 // ═══════════════════════════════════════════
 
 async function save() {
-  // Sauvegarde locale immédiate (fallback)
+  if (!requireAuth()) return { ok: false, synced: false, error: new Error('unauthenticated') };
+
+  // Sauvegarde locale immédiate : l’édition ne disparaît pas si le réseau tombe.
   localStorage.setItem('fp_cards',    JSON.stringify(cards));
   localStorage.setItem('fp_clients',  JSON.stringify(clients));
   localStorage.setItem('fp_activity', JSON.stringify(activity.slice(0,50)));
   localStorage.setItem('fp_week',     JSON.stringify(weekActivity));
 
-  // Sync Firebase
   try {
-    await db.collection('merchants').doc(MERCHANT_ID).set({
+    await withTimeout(db.collection('merchants').doc(MERCHANT_ID).set({
       cards, clients, activity: activity.slice(0,50),
       weekActivity, updatedAt: new Date().toISOString()
-    });
+    }), 10000);
+    hideSyncStatus();
+    return { ok: true, synced: true };
   } catch(e) {
     console.warn('Firebase sync failed, using localStorage', e);
+    showSyncStatus('⚠ Sauvegardé localement — synchronisation impossible');
+    return { ok: true, synced: false, error: e };
   }
 }
 
 async function loadFromFirebase() {
   try {
-    const doc = await db.collection('merchants').doc(MERCHANT_ID).get();
+    const doc = await withTimeout(db.collection('merchants').doc(MERCHANT_ID).get(), 10000);
     if (doc.exists) {
       const data = doc.data();
       cards        = data.cards        || [];
@@ -2398,18 +2404,19 @@ async function loadFromFirebase() {
   return false;
 }
 
-function addActivity(icon, text, color='var(--success)') {
+function addActivity(icon, text, color='var(--success)', persist=true) {
   activity.unshift({ icon, text, color, time: new Date().toISOString() });
   const today = new Date().getDay();
   const idx = (today+6)%7;
   weekActivity[idx] = (weekActivity[idx]||0) + 1;
-  save();
+  return persist ? save() : Promise.resolve({ ok: true, synced: false });
 }
 
 // ═══════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════
 function showPage(id, btn) {
+  if (!requireAuth()) return;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (btn) {
@@ -2578,7 +2585,7 @@ function generateCardQR() {
   const qrArea = document.getElementById('cardQrArea');
   qrArea.innerHTML = '';
   const base = window.location.origin + window.location.pathname.replace('index.html','');
-  const url = `${base}carte.html?code=${code}&card=${activeCardId||''}`;
+  const url = `${base}carte.html?code=${code}&card=${activeCardId||''}&m=${MERCHANT_ID}`;
   try {
     new QRCode(qrArea, { text: url, width:40, height:40, colorDark:'#1a1410', colorLight:'#f5f5f5', correctLevel: QRCode.CorrectLevel.L });
   } catch(e) { qrArea.textContent = '⬡'; qrArea.style.fontSize='1.2rem'; }
@@ -2594,7 +2601,8 @@ function resetStamps() { document.getElementById('stampFilled').value=0; updateC
 // ═══════════════════════════════════════════
 // SAVE / LOAD / NEW
 // ═══════════════════════════════════════════
-function saveCard() {
+async function saveCard() {
+  if (!requireAuth()) return;
   const v = getValues();
   const id = activeCardId || Date.now().toString();
   const existing = cards.findIndex(c=>c.id===id);
@@ -2602,12 +2610,12 @@ function saveCard() {
   const card = { id, ...v, code, logo: currentLogo||null, savedAt: new Date().toISOString() };
   if (existing>=0) cards[existing]=card;
   else { cards.unshift(card); activeCardId=id; }
-  save();
+  addActivity('💾', `Carte "<strong>${v.shopName}</strong>" sauvegardée`, 'var(--accent)', false);
+  const result = await save();
   renderCardList();
   updateSharePage();
   generateCardQR();
-  showToast('✓ Carte sauvegardée !', 'accent');
-  addActivity('💾', `Carte "<strong>${v.shopName}</strong>" sauvegardée`, 'var(--accent)');
+  showToast(result.synced ? '✓ Carte sauvegardée !' : '⚠ Carte enregistrée localement', result.synced ? 'accent' : 'danger');
 }
 
 function newCard() {
@@ -3527,7 +3535,7 @@ function selectShareCard(el, id) {
 
 function updateShareQR(card) {
   const base = window.location.origin + window.location.pathname.replace('index.html','');
-  const link = `${base}carte.html?card=${card.id}`;
+  const link = `${base}carte.html?card=${card.id}&m=${MERCHANT_ID}`;
   document.getElementById('shareLink').textContent = link;
   document.getElementById('shareQrLabel').textContent = card.shopName;
   const container=document.getElementById('shareQrCode');
@@ -3941,7 +3949,7 @@ function loadClientPageDetails(id) {
   const qrEl = document.getElementById('cpQrMini');
   qrEl.innerHTML = '';
   const base = window.location.origin + window.location.pathname.replace('index.html','');
-  const clientUrl = `${base}carte.html?code=${client.code}&card=${client.cardSlots?.[0]?.cardId||client.cardId||''}`;
+  const clientUrl = `${base}carte.html?code=${client.code}&card=${client.cardSlots?.[0]?.cardId||client.cardId||''}&m=${MERCHANT_ID}`;
   try {
     new QRCode(qrEl, { text: clientUrl, width:58, height:58, colorDark:'#111', colorLight:'#fff', correctLevel: QRCode.CorrectLevel.L });
   } catch(e) { qrEl.textContent = '⬡'; }
@@ -4029,8 +4037,8 @@ function showClientLink(client, specificCardId = null) {
 
   const card = cards.find(k => k.id === cardId);
   const base = window.location.origin + window.location.pathname.replace('index.html','');
-  // URL inclut le code client ET l'ID de la carte → confidentialité inter-commerçants
-  const url = `${base}carte.html?code=${client.code}&card=${cardId}`;
+  // URL inclut le code client, l'ID de la carte ET le commerçant → confidentialité inter-commerçants
+  const url = `${base}carte.html?code=${client.code}&card=${cardId}&m=${MERCHANT_ID}`;
   currentClientLink = url;
 
   document.getElementById('clientLinkSub').textContent =
@@ -4100,43 +4108,6 @@ function seedDemoData() {
   };
   cards = [demoCard];
 }
-  // Carte démo
-  const demoCard = {
-    id:'demo1', shopName:'Le Petit Café', tagline:'Votre moment de détente',
-    category:'☕ Café', color1:'#1a0a3a', color2:'#3d1060',
-    textColor:'#ffffff', stampColor:'#f0c060', stampCount:10, stampFilled:4,
-    shape:'circle', emoji:'☕', reward:'1 café offert !', pattern:'dots',
-    code:'FP-CAFE-DM', savedAt:new Date().toISOString()
-  };
-  const demoCard2 = {
-    id:'demo2', shopName:'Studio Zen', tagline:'Corps & Esprit',
-    category:'💆 Spa / Bien-être', color1:'#0a2a1a', color2:'#1a5a3a',
-    textColor:'#ffffff', stampColor:'#70c9a0', stampCount:8, stampFilled:6,
-    shape:'circle', emoji:'💆', reward:'Soin offert 30min', pattern:'waves',
-    code:'FP-ZEN-DM', savedAt:new Date().toISOString()
-  };
-  cards=[demoCard, demoCard2];
-
-  // Clients démo
-  const demoClients=[
-    {id:'c1',name:'Marie Dupont',prenom:'Marie',nom:'Dupont',email:'marie@demo.fr',phone:'',cardId:'demo1',initials:'MD',color:'#6a50d4',code:'CLI-MD001',stampsCurrent:7,stampsTotal:17,stampsCompleted:1,createdAt:new Date(Date.now()-30*864e5).toISOString(),lastVisit:new Date(Date.now()-2*864e5).toISOString()},
-    {id:'c2',name:'Thomas Martin',prenom:'Thomas',nom:'Martin',email:'thomas@demo.fr',phone:'',cardId:'demo1',initials:'TM',color:'#d45050',code:'CLI-TM002',stampsCurrent:3,stampsTotal:3,stampsCompleted:0,createdAt:new Date(Date.now()-14*864e5).toISOString(),lastVisit:new Date(Date.now()-7*864e5).toISOString()},
-    {id:'c3',name:'Sophie Bernard',prenom:'Sophie',nom:'Bernard',email:'sophie@demo.fr',phone:'',cardId:'demo2',initials:'SB',color:'#50d4a4',code:'CLI-SB003',stampsCurrent:8,stampsTotal:16,stampsCompleted:1,createdAt:new Date(Date.now()-60*864e5).toISOString(),lastVisit:new Date(Date.now()-1*864e5).toISOString()},
-    {id:'c4',name:'Lucas Moreau',prenom:'Lucas',nom:'Moreau',email:'',phone:'',cardId:'demo2',initials:'LM',color:'#d4a450',code:'CLI-LM004',stampsCurrent:5,stampsTotal:5,stampsCompleted:0,createdAt:new Date(Date.now()-10*864e5).toISOString(),lastVisit:new Date(Date.now()-3*864e5).toISOString()},
-    {id:'c5',name:'Chloé Simon',prenom:'Chloé',nom:'Simon',email:'chloe@demo.fr',phone:'',cardId:'demo1',initials:'CS',color:'#e080ff',code:'CLI-CS005',stampsCurrent:9,stampsTotal:9,stampsCompleted:0,createdAt:new Date(Date.now()-5*864e5).toISOString(),lastVisit:new Date(Date.now()-864e5).toISOString()},
-  ];
-  clients=demoClients;
-
-  activity=[
-    {icon:'✦',text:'Tampon ajouté — Chloé Simon (9/10)',color:'var(--success)',time:new Date(Date.now()-3600000).toISOString()},
-    {icon:'🎁',text:'Sophie Bernard a obtenu : Soin offert 30min',color:'var(--accent)',time:new Date(Date.now()-7200000).toISOString()},
-    {icon:'👤',text:'Nouveau client Lucas Moreau enregistré',color:'var(--info)',time:new Date(Date.now()-86400000).toISOString()},
-    {icon:'✦',text:'Tampon ajouté — Marie Dupont (7/10)',color:'var(--success)',time:new Date(Date.now()-172800000).toISOString()},
-  ];
-  weekActivity=[2,4,1,6,3,5,8];
-
-  save();
-}
 
 // ═══════════════════════════════════════════
 // BOOT — onAuthStateChanged gère tout
@@ -4148,36 +4119,9 @@ applyTheme();
 // SERVICE WORKER (PWA)
 // ═══════════════════════════════════════════
 if ('serviceWorker' in navigator) {
-  const swCode = `
-const CACHE = 'fidelitepro-v1';
-const ASSETS = ['/FidelitePro/'];
-self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))));
-self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-  `;
-  const blob = new Blob([swCode], {type:'application/javascript'});
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).catch(()=>{});
+  navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+    .catch(err => console.warn('Service worker unavailable', err));
 }
-
-// Manifest dynamique
-const manifest = {
-  name: 'FidélitéPro',
-  short_name: 'FidélitéPro',
-  description: 'Cartes de fidélité dématérialisées',
-  start_url: '/FidelitePro/',
-  display: 'standalone',
-  background_color: '#0f0e11',
-  theme_color: '#0f0e11',
-  icons: [{
-    src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%230f0e11'/><text y='140' x='96' text-anchor='middle' font-size='120' fill='%23c8a96e'>✦</text></svg>",
-    sizes: '192x192', type: 'image/svg+xml'
-  }]
-};
-const manifestBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
-const manifestUrl = URL.createObjectURL(manifestBlob);
-const link = document.createElement('link');
-link.rel = 'manifest'; link.href = manifestUrl;
-document.head.appendChild(link);
 </script>
 </body>
 </html>
