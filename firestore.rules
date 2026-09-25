@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Chaque commerçant ne peut lire/écrire que son propre document.
+    // Aucun accès public, aucun accès entre commerçants.
+    // L'accès public (carte client) et l'accès admin (vue d'ensemble)
+    // passent exclusivement par les Cloud Functions getPublicCard / adminListMerchants,
+    // qui utilisent le Admin SDK côté serveur et ne renvoient que des données filtrées.
+    match /merchants/{merchantId} {
+      allow read, write: if request.auth != null && request.auth.uid == merchantId;
+    }
+
+    // Liste des UID admin. Créés manuellement dans la console Firestore —
+    // jamais accessible en écriture depuis le client.
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}
