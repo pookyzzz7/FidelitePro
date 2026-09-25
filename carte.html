@@ -10,10 +10,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ma Carte">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest-carte.webmanifest">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBKom1-N5CWuHRVORrdumtvnJVeJZqAEjc",
@@ -24,22 +25,7 @@ const firebaseConfig = {
   appId: "1:106879268099:web:e935d1488ff1a23a51e536"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-</script>
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBKom1-N5CWuHRVORrdumtvnJVeJZqAEjc",
-  authDomain: "fidelitepro-f14a0.firebaseapp.com",
-  projectId: "fidelitepro-f14a0",
-  storageBucket: "fidelitepro-f14a0.firebasestorage.app",
-  messagingSenderId: "106879268099",
-  appId: "1:106879268099:web:e935d1488ff1a23a51e536"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const functions = firebase.app().functions('europe-west1');
 </script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -363,51 +349,37 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('fr-FR', {day:'2-digit',month:'long',year:'numeric'});
 }
 
-// ── LOAD DATA depuis Firebase ──
-async function getData() {
-  const MERCHANT_ID = 'merchant_default';
-  try {
-    const doc = await db.collection('merchants').doc(MERCHANT_ID).get();
-    if (doc.exists) {
-      const data = doc.data();
-      // Sauvegarde locale de secours
-      localStorage.setItem('fp_cards',    JSON.stringify(data.cards    || []));
-      localStorage.setItem('fp_clients',  JSON.stringify(data.clients  || []));
-      localStorage.setItem('fp_activity', JSON.stringify(data.activity || []));
-      return {
-        cards:    data.cards    || [],
-        clients:  data.clients  || [],
-        activity: data.activity || [],
-      };
-    }
-  } catch(e) {
-    console.warn('Firebase unavailable, using localStorage', e);
-  }
-  // Fallback localStorage
-  return {
-    cards:    JSON.parse(localStorage.getItem('fp_cards')    || '[]'),
-    clients:  JSON.parse(localStorage.getItem('fp_clients')  || '[]'),
-    activity: JSON.parse(localStorage.getItem('fp_activity') || '[]'),
-  };
+// ── LOAD DATA via Cloud Function (jamais de lecture directe Firestore) ──
+// getPublicCard ne renvoie que la carte + la progression de CE client précis,
+// jamais la liste des autres clients du commerçant.
+async function getPublicCard(merchantId, code, cardId) {
+  const call = functions.httpsCallable('getPublicCard');
+  const res = await call({ merchantId, code, cardId });
+  return res.data; // { card, client, slot, history }
 }
 
 // ── GET CODE FROM URL ou localStorage ──
 function getCodeFromURL() {
   const params = new URLSearchParams(window.location.search);
-  const code   = params.get('code') || params.get('c') || null;
-  const cardId = params.get('card') || null;
+  const code       = params.get('code') || params.get('c') || null;
+  const cardId     = params.get('card') || null;
+  const merchantId = params.get('m') || null;
 
-  if (code) {
+  if (code && merchantId) {
     localStorage.setItem('fp_client_code', code);
+    localStorage.setItem('fp_client_merchant', merchantId);
     if (cardId) localStorage.setItem('fp_client_card', cardId);
-    return { code, cardId };
+    return { code, cardId, merchantId };
   }
 
-  const savedCode   = localStorage.getItem('fp_client_code');
-  const savedCardId = localStorage.getItem('fp_client_card');
-  if (savedCode) return { code: savedCode, cardId: savedCardId };
+  const savedCode       = localStorage.getItem('fp_client_code');
+  const savedCardId     = localStorage.getItem('fp_client_card');
+  const savedMerchantId = localStorage.getItem('fp_client_merchant');
+  if (savedCode && savedMerchantId) {
+    return { code: savedCode, cardId: savedCardId, merchantId: savedMerchantId };
+  }
 
-  return { code: null, cardId: null };
+  return { code: null, cardId: null, merchantId: null };
 }
 
 // ── APPLY PATTERN TO SVG ──
@@ -456,33 +428,28 @@ function animateStamp(el, message) {
 
 // ── RENDER PAGE ──
 async function render() {
-  const { code, cardId } = getCodeFromURL();
+  const { code, cardId, merchantId } = getCodeFromURL();
   const main = document.getElementById('mainContent');
 
   // Afficher chargement
   main.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:1rem;color:var(--muted)"><div style="font-size:2.5rem">✦</div><div style="font-size:0.85rem">Chargement de votre carte...</div></div>`;
 
-  if (!code) {
+  if (!code || !merchantId) {
     main.innerHTML = `<div class="error-state"><div class="error-icon">🔗</div><div class="error-title">Lien invalide</div><div class="error-desc">Ce lien ne correspond à aucune carte de fidélité. Demandez votre lien personnel à votre commerçant.</div></div>`;
     return;
   }
 
-  // Chargement Firebase
-  const { cards, clients, activity } = await getData();
-
-  const client = clients.find(c => c.code === code);
-  if (!client) {
+  // Chargement via Cloud Function : ne renvoie que la carte de CE client, jamais les autres
+  let card, client, targetSlot, clientActivity;
+  try {
+    const result = await getPublicCard(merchantId, code, cardId);
+    card = result.card;
+    client = result.client;
+    targetSlot = result.slot;
+    clientActivity = result.history || [];
+  } catch (e) {
+    console.warn('getPublicCard failed', e);
     main.innerHTML = `<div class="error-state"><div class="error-icon">👤</div><div class="error-title">Carte introuvable</div><div class="error-desc">Le code <strong style="color:var(--accent);font-family:'DM Mono',monospace">${code}</strong> ne correspond à aucun compte enregistré.</div></div>`;
-    return;
-  }
-
-  const slots = client.cardSlots || [{ cardId: client.cardId, stampsCurrent: client.stampsCurrent, stampsCompleted: client.stampsCompleted||0, expiry: null }];
-  let targetSlot = cardId ? (slots.find(s => s.cardId === cardId) || slots[0]) : slots[0];
-  let card = cards.find(k => k.id === (cardId || targetSlot?.cardId));
-  if (!card && slots[0]) card = cards.find(k => k.id === slots[0].cardId);
-
-  if (!card) {
-    main.innerHTML = `<div class="error-state"><div class="error-icon">🃏</div><div class="error-title">Carte supprimée</div><div class="error-desc">La carte n'existe plus. Contactez votre commerçant.</div></div>`;
     return;
   }
 
@@ -513,11 +480,6 @@ async function render() {
   } else if (expiryDays !== null && expiryDays <= 30) {
     expiryHTML = `<div style="background:rgba(200,169,110,0.1);border:1px solid rgba(200,169,110,0.3);border-radius:10px;padding:0.75rem 1rem;font-size:0.82rem;color:var(--accent);display:flex;align-items:center;gap:0.5rem">⏳ Votre carte expire dans <strong>${expiryDays} jour${expiryDays>1?'s':''}</strong>.</div>`;
   }
-
-  // Client history (filtered to this card only)
-  const clientActivity = activity
-    .filter(a => a.text && a.text.includes(client.name) && (!cardId || a.text.includes(card.shopName)))
-    .slice(0, 5);
 
   const historyHTML = clientActivity.length === 0
     ? '<div class="history-item" style="color:var(--muted)">Aucune visite encore enregistrée</div>'
@@ -670,7 +632,7 @@ async function render() {
 
 function disconnectCard() {
   if (confirm('Voulez-vous changer de carte ? Votre carte actuelle sera oubliée sur cet appareil.')) {
-    ['fp_client_code','fp_client_card','fp_my_client','fp_my_card','fp_my_activity'].forEach(k => localStorage.removeItem(k));
+    ['fp_client_code','fp_client_card','fp_client_merchant','fp_my_client','fp_my_card','fp_my_activity'].forEach(k => localStorage.removeItem(k));
     document.getElementById('mainContent').innerHTML = `
       <div class="error-state">
         <div class="error-icon">🔗</div>
@@ -702,24 +664,11 @@ function dismissBanner() {
   sessionStorage.setItem('pwa-dismissed', '1');
 }
 
-// ── PWA Manifest ──
-const manifest = {
-  name: 'Ma carte de fidélité',
-  short_name: 'Ma Carte',
-  // start_url sans paramètres → localStorage prend le relais
-  start_url: window.location.pathname,
-  display: 'standalone',
-  background_color: '#0f0e11',
-  theme_color: '#0f0e11',
-  icons: [{
-    src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%230f0e11'/><text y='140' x='96' text-anchor='middle' font-size='120' fill='%23c8a96e'>✦</text></svg>",
-    sizes: '192x192', type: 'image/svg+xml'
-  }]
-};
-const mBlob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
-const mLink = document.createElement('link');
-mLink.rel = 'manifest'; mLink.href = URL.createObjectURL(mBlob);
-document.head.appendChild(mLink);
+// PWA assets are static so installation and offline shell loading work reliably.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+    .catch(err => console.warn('Service worker unavailable', err));
+}
 
 // ── BOOT ──
 render();
